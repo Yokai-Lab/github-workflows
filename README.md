@@ -121,6 +121,11 @@ permissions:
 jobs:
   release:
     uses: Yokai-Lab/github-workflows/.github/workflows/npm-publish.yml@v1
+    # Release tags are committed as "Yokai Labs CI <ci@yokailabs.com>" by
+    # default. Override per consumer:
+    # with:
+    #   git-user-name: Yokai Labs CI
+    #   git-user-email: patrick+ci@yokailabs.com
 ```
 
 **One-time setup per consuming repo:**

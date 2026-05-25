@@ -44,6 +44,14 @@ on:
         type: string
         default: 'npx changeset publish'
         description: Command that publishes already-versioned packages. Override for custom tooling.
+      git-user-name:
+        type: string
+        default: 'Yokai Labs CI'
+        description: Git committer name for the release tags. Override per consumer.
+      git-user-email:
+        type: string
+        default: 'ci@yokailabs.com'
+        description: Git committer email for the release tags (metadata only, never emailed). Override per consumer.
 
 jobs:
   publish:
@@ -65,12 +73,19 @@ jobs:
       # Trusted Publishing needs npm >= 11.5.1; the LTS Node line ships older.
       - run: npm install -g npm@latest
 
-      # Publishes any package whose version isn't on the registry yet, and
-      # creates a git tag per published package. No-op (exit 0) if nothing is
-      # unpublished, so re-runs are safe.
+      # Publishes any package whose version isn't on the registry yet. No-op
+      # (exit 0) if nothing is unpublished, so re-runs are safe.
       - run: ${{ inputs.publish-command }}
         env:
           NPM_CONFIG_PROVENANCE: 'true'
 
-      # Push the tags `changeset publish` just created. No-op if none.
-      - run: git push origin --tags
+      # Tag the published versions and push. `changeset` writes ANNOTATED tags,
+      # which need a committer identity the runner doesn't have — without it the
+      # tag creation fails silently and nothing gets pushed. `changeset tag` is
+      # idempotent (skips tags that already exist), so re-runs are safe.
+      - name: Tag and push releases
+        run: |
+          git config user.name "${{ inputs.git-user-name }}"
+          git config user.email "${{ inputs.git-user-email }}"
+          npx changeset tag
+          git push origin --tags
