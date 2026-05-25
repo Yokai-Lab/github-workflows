@@ -5,13 +5,20 @@ name: Pulumi Preview (Node)
 # preview diff as a PR comment by default.
 #
 # Caller setup:
-#   Repo/environment variables:
+#   Environment variables (the job targets the `stack-name` environment, so
+#   environment-scoped *variables* resolve here):
 #     AWS_DEPLOY_ROLE_ARN  — IAM role the workflow assumes (OIDC trust policy
 #                            must allow this repo's GitHub OIDC subject).
 #     PULUMI_BACKEND_URL   — e.g. s3://my-pulumi-state-bucket
 #                            (or pass `pulumi-backend-url` directly).
-#   Secret:
-#     PULUMI_CONFIG_PASSPHRASE
+#   Secret — pass it EXPLICITLY, never via `secrets: inherit`:
+#     PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+#       `secrets: inherit` does NOT forward secrets across repo owners (this
+#       workflow lives under Yokai-Lab; callers under McNouvion are cross-owner),
+#       so the only secret that reaches here is one explicitly mapped above.
+#       The source must be a repo/org-level secret — the caller job that invokes
+#       a reusable workflow can't target an environment, so an environment-scoped
+#       secret resolves empty there. (Env-scoped *variables* are fine.)
 #
 # Pin callers to a major tag, e.g. @v1.
 
@@ -52,7 +59,13 @@ on:
         description: Extra env vars as KEY=VALUE lines (one per line), exported for the Pulumi step.
     secrets:
       PULUMI_CONFIG_PASSPHRASE:
-        required: true
+        required: false
+        description: >-
+          Passphrase for the Pulumi passphrase secrets provider. Pass it
+          EXPLICITLY (`secrets: { PULUMI_CONFIG_PASSPHRASE: ... }`); `secrets:
+          inherit` does not forward secrets across repo owners. The source must
+          be a repo/org-level secret so the caller's (non-environment) job can
+          resolve it.
 
 jobs:
   preview:
