@@ -1,0 +1,47 @@
+name: Node CI
+
+# Reusable CI workflow for a Node package/app. Runs format check, lint,
+# dead-code check, build, and tests.
+#
+# Caller requirements:
+#   * package.json scripts: `lint`, `knip`, `build`
+#   * prettier + @yokailabs/prettier-config wired up (npx prettier --check .)
+#   * vitest as the test runner
+#
+# Pin callers to a major tag, e.g. @v1.
+
+on:
+  workflow_call:
+    inputs:
+      node-version:
+        type: string
+        default: '24'
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: npm
+      - run: npm ci
+      - run: npx prettier --check .
+      - run: npm run lint
+      - run: npm run knip
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: npm
+      - run: npm ci
+      # Build before tests so integration tests can exercise the real dist/
+      # (built index.html, asset paths, runtime config injection). A build
+      # failure fails the job, so a separate build job would just be a rerun.
+      - run: npm run build
+      - run: npx vitest run

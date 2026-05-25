@@ -1,0 +1,87 @@
+name: Pulumi Preview (Node)
+
+# Reusable workflow: `pulumi preview` for a Node-based Pulumi program,
+# authenticating to AWS via OIDC (no static access keys). Posts the
+# preview diff as a PR comment by default.
+#
+# Caller setup:
+#   Repo/environment variables:
+#     AWS_DEPLOY_ROLE_ARN  — IAM role the workflow assumes (OIDC trust policy
+#                            must allow this repo's GitHub OIDC subject).
+#     PULUMI_BACKEND_URL   — e.g. s3://my-pulumi-state-bucket
+#                            (or pass `pulumi-backend-url` directly).
+#   Secret:
+#     PULUMI_CONFIG_PASSPHRASE
+#
+# Pin callers to a major tag, e.g. @v1.
+
+on:
+  workflow_call:
+    inputs:
+      node-version:
+        type: string
+        default: '24'
+      stack-name:
+        type: string
+        default: beta
+      work-dir:
+        type: string
+        default: infra/pulumi
+      aws-region:
+        type: string
+        default: us-east-2
+      pulumi-backend-url:
+        type: string
+        required: false
+        default: ''
+        description: Pulumi state backend URL. Falls back to vars.PULUMI_BACKEND_URL.
+      comment-on-pr:
+        type: boolean
+        default: true
+        description: Post the preview diff as a PR comment. Set false when used as a deploy gate.
+      extra-env:
+        type: string
+        default: ''
+        description: Extra env vars as KEY=VALUE lines (one per line), exported for the Pulumi step.
+    secrets:
+      PULUMI_CONFIG_PASSPHRASE:
+        required: true
+
+jobs:
+  preview:
+    environment: ${{ inputs.stack-name }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ inputs.aws-region }}
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: npm
+          cache-dependency-path: ${{ inputs.work-dir }}/package-lock.json
+
+      - run: npm ci
+        working-directory: ${{ inputs.work-dir }}
+
+      - name: Export extra env
+        if: inputs.extra-env != ''
+        run: echo "${{ inputs.extra-env }}" >> "$GITHUB_ENV"
+
+      - uses: pulumi/actions@v7
+        with:
+          command: preview
+          stack-name: ${{ inputs.stack-name }}
+          work-dir: ${{ inputs.work-dir }}
+          comment-on-pr: ${{ inputs.comment-on-pr }}
+        env:
+          PULUMI_BACKEND_URL: ${{ inputs.pulumi-backend-url || vars.PULUMI_BACKEND_URL }}
+          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}

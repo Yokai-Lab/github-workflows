@@ -1,0 +1,44 @@
+name: Slack Failure Notification
+
+# Reusable workflow: post a build/deploy failure (or cancellation) to Slack.
+# Wire it as a trailing job with `if: always() && contains(needs.*.result, 'failure')`.
+#
+# Caller setup:
+#   Secret: SLACK_WEBHOOK_URL  (an incoming-webhook URL)
+#
+# Pin callers to a major tag, e.g. @v1.
+
+on:
+  workflow_call:
+    inputs:
+      service-name:
+        type: string
+        required: true
+        description: Human-readable name for the Slack message.
+      environment:
+        type: string
+        default: beta
+      status:
+        type: string
+        default: failed
+        description: |
+          'failed' (default) for explicit job failures, 'cancelled' for jobs that were
+          cancelled (manual cancel or GitHub runner-queue timeout). The icon and verb
+          change accordingly so you can triage differently.
+    secrets:
+      SLACK_WEBHOOK_URL:
+        required: true
+
+jobs:
+  notify:
+    environment: ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: slackapi/slack-github-action@v3
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "${{ inputs.status == 'cancelled' && ':large_yellow_circle:' || ':red_circle:' }} *${{ inputs.service-name }} deploy ${{ inputs.status }}* on `${{ github.ref_name }}`${{ inputs.status == 'cancelled' && ' — likely a GitHub runner queue timeout or a manual cancel; check the run.' || '' }}\n*Commit:* <${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>\n*Run:* <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View logs>"
+            }

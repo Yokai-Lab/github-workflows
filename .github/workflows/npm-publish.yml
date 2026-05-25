@@ -1,0 +1,76 @@
+name: Release (npm)
+
+# Reusable workflow: publish `@scope` packages to npm via OIDC Trusted
+# Publishing — NO token, nothing to rotate or expire. Provenance attestations
+# are produced automatically.
+#
+# Publish-only, no PRs. The CALLER versions locally and commits to main:
+#   npx changeset            # record a change
+#   npx changeset version    # bump version + write CHANGELOG, consume changeset
+#   git commit … && git push # straight to main
+# On push to main this runs `changeset publish`, which publishes any package
+# whose package.json version isn't on the registry yet (idempotent) and pushes
+# the matching git tags.
+#
+# ── One-time setup, per consuming repo ──────────────────────────────────────
+#  1. Add a caller workflow at .github/workflows/release.yml that invokes this
+#     one (see README). It MUST grant: contents: write (to push tags) and
+#     id-token: write (OIDC requires id-token:write on the CALLER too, not just
+#     here).
+#  2. For each package, configure a Trusted Publisher at npmjs.com:
+#       Package → Settings → Trusted Publisher → GitHub Actions
+#         Organization / repository = the CONSUMING repo (e.g. Yokai-Lab/foo)
+#         Workflow filename         = release.yml   ← the CALLER's filename,
+#                                     NOT npm-publish.yml. npm validates the
+#                                     entry-point workflow, not the reusable one.
+#         Environment               = (leave blank)
+#     Recommended package setting: "Require two-factor authentication and
+#     disallow tokens" — trusted publishing (OIDC) is exempt, so CI keeps
+#     working while no token can ever publish.
+#  3. Bootstrap a brand-new package name with one manual `npm publish` first —
+#     trusted publishing can't create a name that doesn't exist yet.
+#
+# Requirements (handled below): npm >= 11.5.1, Node >= 22.14.0.
+#
+# Pin callers to a major tag, e.g. @v1.
+
+on:
+  workflow_call:
+    inputs:
+      node-version:
+        type: string
+        default: '24'
+      publish-command:
+        type: string
+        default: 'npx changeset publish'
+        description: Command that publishes already-versioned packages. Override for custom tooling.
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # push the git tags `changeset publish` creates
+      id-token: write # OIDC exchange for npm Trusted Publishing
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: npm
+          registry-url: 'https://registry.npmjs.org'
+
+      - run: npm ci
+
+      # Trusted Publishing needs npm >= 11.5.1; the LTS Node line ships older.
+      - run: npm install -g npm@latest
+
+      # Publishes any package whose version isn't on the registry yet, and
+      # creates a git tag per published package. No-op (exit 0) if nothing is
+      # unpublished, so re-runs are safe.
+      - run: ${{ inputs.publish-command }}
+        env:
+          NPM_CONFIG_PROVENANCE: 'true'
+
+      # Push the tags `changeset publish` just created. No-op if none.
+      - run: git push origin --tags
