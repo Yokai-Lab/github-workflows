@@ -27,6 +27,13 @@ on:
       work-dir:
         type: string
         default: infra/pulumi
+      install-dir:
+        type: string
+        default: ''
+        description: >-
+          Directory to run `npm ci` in (where the lockfile lives). For an
+          npm-workspaces monorepo this is the repo root ('.') while work-dir
+          stays the Pulumi program. Defaults to work-dir for back-compat.
       aws-region:
         type: string
         default: us-east-2
@@ -67,10 +74,10 @@ jobs:
         with:
           node-version: ${{ inputs.node-version }}
           cache: npm
-          cache-dependency-path: ${{ inputs.work-dir }}/package-lock.json
+          cache-dependency-path: ${{ inputs.install-dir || inputs.work-dir }}/package-lock.json
 
       - run: npm ci
-        working-directory: ${{ inputs.work-dir }}
+        working-directory: ${{ inputs.install-dir || inputs.work-dir }}
 
       - name: Export extra env
         if: inputs.extra-env != ''
