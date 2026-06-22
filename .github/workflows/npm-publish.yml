@@ -60,7 +60,7 @@ jobs:
       contents: write # push the git tags `changeset publish` creates
       id-token: write # OIDC exchange for npm Trusted Publishing
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v6
         with:
