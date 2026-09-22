@@ -71,7 +71,10 @@ jobs:
       - run: npm ci
 
       # Trusted Publishing needs npm >= 11.5.1; the LTS Node line ships older.
-      - run: npm install -g npm@latest
+      # Pinned to 11: npm 12 returns an array from `npm info --json`, which
+      # changesets 2.x reads as "not published", so it republishes every
+      # existing version and fails the run.
+      - run: npm install -g npm@11
 
       # Publishes any package whose version isn't on the registry yet. No-op
       # (exit 0) if nothing is unpublished, so re-runs are safe.
