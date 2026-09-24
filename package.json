@@ -1,0 +1,22 @@
+{
+  "name": "github-workflows",
+  "private": true,
+  "description": "Tooling for this repo's own checks. The workflows themselves are consumed with `uses:`, never installed.",
+  "license": "MIT",
+  "scripts": {
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
+    "lint": "actionlint",
+    "prepare": "husky"
+  },
+  "prettier": "@yokailabs/prettier-config",
+  "lint-staged": {
+    "*.{md,json,yml,yaml}": "prettier --write"
+  },
+  "devDependencies": {
+    "@yokailabs/prettier-config": "^0.0.3",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.5.1",
+    "prettier": "^3.9.9"
+  }
+}

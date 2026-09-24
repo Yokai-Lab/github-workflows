@@ -4,12 +4,12 @@ One-time setup a project must do before the reusable workflows in this repo
 will run. **CI (`ci-node`) needs none of this** — it works on a fresh repo.
 The rest depends on which workflows you adopt:
 
-| You're adopting…       | Do steps      |
-| ---------------------- | ------------- |
-| `ci-node`              | none          |
-| `npm-publish`          | 5             |
-| `pulumi-preview-node`  | 1, 2, 3, 4    |
-| `notify-slack-failure` | 6             |
+| You're adopting…       | Do steps   |
+| ---------------------- | ---------- |
+| `ci-node`              | none       |
+| `npm-publish`          | 5          |
+| `pulumi-preview-node`  | 1, 2, 3, 4 |
+| `notify-slack-failure` | 6          |
 
 Replace every `<PLACEHOLDER>`. Region defaults to `us-east-2`. Each AWS step
 starts with an identity check — **read the expected output before running it.**

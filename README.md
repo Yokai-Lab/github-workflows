@@ -14,7 +14,7 @@ for the one-time account/repo setup these workflows depend on.
   (eslint), `knip` (dead-code), and `build` scripts, and tests run under vitest.
   No `knip` script ⇒ CI fails. The formatting/lint/TS configs themselves come
   from the shared [`@yokailabs/*` config packages](https://github.com/Yokai-Lab/yokailabs-configs)
-  (`prettier-config` today; `eslint-config` and `tsconfig` planned) — the
+  (`prettier-config`, `eslint-config` and `tsconfig`) — the
   workflow only runs the scripts, so it's agnostic to which configs you extend.
 - **Cloud:** AWS, region `us-east-2` by default.
 - **No static credentials, anywhere.** Auth is GitHub OIDC end to end — AWS via
@@ -69,7 +69,7 @@ jobs:
   ci:
     uses: Yokai-Lab/github-workflows/.github/workflows/ci-node.yml@v1
     with:
-      node-version: "24" # optional, this is the default
+      node-version: '24' # optional, this is the default
 ```
 
 Requires `lint`, `knip`, and `build` scripts in `package.json`, prettier wired
@@ -82,7 +82,7 @@ repo-specific jobs alongside the reusable call as needed.
 name: Pulumi Preview
 on:
   pull_request:
-    paths: ["infra/pulumi/**"]
+    paths: ['infra/pulumi/**']
 
 jobs:
   preview:
@@ -167,6 +167,14 @@ jobs:
 ```
 
 ---
+
+## Working on this repo
+
+`npm install` sets up the tooling and the git hooks. The workflows are checked with actionlint,
+which runs shellcheck on their `run:` steps (`brew install actionlint shellcheck`), and every
+file is formatted with prettier. The pre-push hook runs both, and so does this repo's own CI
+(`ci.yml`) on pull requests and on `main`. `ci-node` does not fit here: there is no package to
+lint, build or test.
 
 ## Adding a workflow
 
