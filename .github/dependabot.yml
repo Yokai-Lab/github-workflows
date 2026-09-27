@@ -1,18 +1,17 @@
 version: 2
+
+# One weekly PR for every ecosystem, so updates land as one change to review.
+multi-ecosystem-groups:
+  all:
+    schedule:
+      interval: weekly
+
 updates:
   - package-ecosystem: github-actions
     directory: /
-    schedule:
-      interval: weekly
-    groups:
-      github-actions-all:
-        patterns:
-          - '*'
+    multi-ecosystem-group: all
+    patterns: ['*']
   - package-ecosystem: npm
     directory: /
-    schedule:
-      interval: weekly
-    groups:
-      npm-all:
-        patterns:
-          - '*'
+    multi-ecosystem-group: all
+    patterns: ['*']
