@@ -16,6 +16,11 @@ on:
       node-version:
         type: string
         default: '24'
+      # Browsers for tests that run in one, such as vitest browser mode:
+      # space-separated Playwright names (`chromium firefox`). Empty skips it.
+      playwright-browsers:
+        type: string
+        default: ''
 
 jobs:
   check:
@@ -40,6 +45,10 @@ jobs:
           node-version: ${{ inputs.node-version }}
           cache: npm
       - run: npm ci
+      # The repo's own playwright, so the browser builds match what its tests
+      # expect; --with-deps adds the system libraries they need.
+      - if: inputs.playwright-browsers != ''
+        run: npx playwright install --with-deps ${{ inputs.playwright-browsers }}
       # Build before tests so integration tests can exercise the real dist/
       # (built index.html, asset paths, runtime config injection). A build
       # failure fails the job, so a separate build job would just be a rerun.

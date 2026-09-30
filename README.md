@@ -70,11 +70,15 @@ jobs:
     uses: Yokai-Lab/github-workflows/.github/workflows/ci-node.yml@v1
     with:
       node-version: '24' # optional, this is the default
+      playwright-browsers: chromium # optional, for tests that run in a browser
 ```
 
 Requires `lint`, `knip`, and `build` scripts in `package.json`, prettier wired
-up (see `@yokailabs/prettier-config`), and vitest as the test runner. Add
-repo-specific jobs alongside the reusable call as needed.
+up (see `@yokailabs/prettier-config`), and vitest as the test runner. Tests
+that run in a browser (vitest browser mode, Storybook's vitest addon) name the
+Playwright browsers they need in `playwright-browsers`, and need `playwright`
+as a dev dependency. Add repo-specific jobs alongside the reusable call as
+needed.
 
 ### Pulumi preview
 
