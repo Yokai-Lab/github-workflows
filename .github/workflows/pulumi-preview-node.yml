@@ -19,6 +19,10 @@ name: Pulumi Preview (Node)
 #       The source must be a repo/org-level secret — the caller job that invokes
 #       a reusable workflow can't target an environment, so an environment-scoped
 #       secret resolves empty there. (Env-scoped *variables* are fine.)
+#   Input `trusted-actors` — the people whose runs need no approval. Any other
+#     run fails at the gate until one of them triggers a new run on the same
+#     commit: a re-run, or a label added to the PR when the caller listens for
+#     `labeled`. Empty trusts nobody.
 #
 # Pin callers to a major tag, e.g. @v1.
 
@@ -57,6 +61,13 @@ on:
         type: string
         default: ''
         description: Extra env vars as KEY=VALUE lines (one per line), exported for the Pulumi step.
+      trusted-actors:
+        type: string
+        default: ''
+        description: >-
+          GitHub logins of the people whose runs start the preview without
+          approval, separated by spaces, commas or newlines. Empty trusts
+          nobody, so every run waits for approval.
     secrets:
       PULUMI_CONFIG_PASSPHRASE:
         required: false
@@ -68,7 +79,30 @@ on:
           resolve it.
 
 jobs:
+  # The preview runs the checked-out Pulumi program with the AWS role, so
+  # whoever wrote that code holds the role. Only a run a trusted person caused
+  # may start it. Branch names and PR authors prove nothing: a worker can push
+  # under any branch name, and a person's PR can carry a bot's later commit.
+  # The check is on who triggered this event rather than on a label being
+  # present, so an approval covers the commit it was given on and no later one.
+  gate:
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Check who triggered the run
+        env:
+          ACTOR: ${{ github.triggering_actor }}
+          TRUSTED: ${{ inputs.trusted-actors }}
+        run: |
+          set -f # a login such as dependabot[bot] is not a glob
+          for login in ${TRUSTED//,/ }; do
+            if [ "${login,,}" = "${ACTOR,,}" ]; then exit 0; fi
+          done
+          echo "::error title=Preview needs approval::$ACTOR is not in trusted-actors, so the preview would hand the AWS role to code no trusted person vetted. A trusted person approves this commit by re-running this run, or by adding a label to the PR when the caller listens for labeled."
+          exit 1
+
   preview:
+    needs: gate
     environment: ${{ inputs.stack-name }}
     runs-on: ubuntu-latest
     permissions:

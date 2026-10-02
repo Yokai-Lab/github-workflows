@@ -91,6 +91,8 @@ already on `main` would otherwise turn `main` red.
 name: Pulumi Preview
 on:
   pull_request:
+    # labeled lets a trusted person approve a run someone else triggered.
+    types: [opened, synchronize, reopened, labeled]
     paths: ['infra/pulumi/**']
 
 jobs:
@@ -100,6 +102,7 @@ jobs:
       stack-name: beta
       work-dir: infra/pulumi
       pulumi-backend-url: s3://my-pulumi-state-bucket
+      trusted-actors: McNouvion
     secrets:
       PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
 ```
@@ -107,6 +110,15 @@ jobs:
 Set repo/environment variables `AWS_DEPLOY_ROLE_ARN` (an IAM role whose trust
 policy allows this repo's GitHub OIDC subject) and, if not passed inline,
 `PULUMI_BACKEND_URL`. `aws-region` defaults to `us-east-2`.
+
+The preview runs the PR's own Pulumi program with that role, so it starts only
+when `github.triggering_actor` is one of `trusted-actors`. Any other run,
+Dependabot's included, fails at the `gate` job until a trusted person triggers
+a new run on the same commit, by adding a label to the PR or re-running the
+gated run; a later push needs approving again. Re-running a Dependabot run
+keeps Dependabot's restricted secrets, so its PRs take the label. The gate
+applies to every event, so as a deploy gate on `push` it passes only when a
+trusted person pushed or merged.
 
 ### npm release (Changesets + OIDC Trusted Publishing)
 
@@ -191,6 +203,16 @@ lint, build or test.
 2. Parameterize repo-specific values via `inputs` / `secrets`.
 3. Document it here.
 4. Cut a release: move the `v1` tag (or bump the major on a breaking change).
+
+**A workflow that takes a secret or a cloud role on `pull_request` gates that
+job on `github.triggering_actor`,** as `pulumi-preview-node` does: whoever wrote
+the PR's code holds whatever the job holds, and a bot that cannot edit workflow
+files can still write that code. The caller passes the people it trusts as
+`trusted-actors`, an empty list trusts nobody, and any other actor fails a gate
+job that holds no permissions before the privileged job starts. Never key the
+gate on the branch name, the PR author or a label being present: a bot can push
+under any branch name, a person's PR can carry a bot's later commit, and a label
+stays on when new commits land.
 
 ## Cutting a release
 
