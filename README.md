@@ -91,7 +91,7 @@ already on `main` would otherwise turn `main` red.
 name: Pulumi Preview
 on:
   pull_request:
-    # labeled lets a trusted person approve a run someone else triggered.
+    # labeled lets a repo admin approve a run someone else triggered.
     types: [opened, synchronize, reopened, labeled]
     paths: ['infra/pulumi/**']
 
@@ -102,7 +102,6 @@ jobs:
       stack-name: beta
       work-dir: infra/pulumi
       pulumi-backend-url: s3://my-pulumi-state-bucket
-      trusted-actors: McNouvion
     secrets:
       PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
 ```
@@ -112,13 +111,14 @@ policy allows this repo's GitHub OIDC subject) and, if not passed inline,
 `PULUMI_BACKEND_URL`. `aws-region` defaults to `us-east-2`.
 
 The preview runs the PR's own Pulumi program with that role, so it starts only
-when `github.triggering_actor` is one of `trusted-actors`. Any other run,
-Dependabot's included, fails at the `gate` job until a trusted person triggers
-a new run on the same commit, by adding a label to the PR or re-running the
-gated run; a later push needs approving again. Re-running a Dependabot run
-keeps Dependabot's restricted secrets, so its PRs take the label. The gate
-applies to every event, so as a deploy gate on `push` it passes only when a
-trusted person pushed or merged.
+when `github.triggering_actor` is an admin of the calling repo, or is listed in
+the optional `trusted-actors` input. GitHub reports every bot, Dependabot
+included, as holding no permission, so any other run fails at the `gate` job
+until an admin triggers a new run on the same commit, by adding a label to the
+PR or re-running the gated run; a later push needs approving again. Re-running
+a Dependabot run keeps Dependabot's restricted secrets, so its PRs take the
+label. The gate applies to every event, so as a deploy gate on `push` it passes
+only when an admin pushed or merged.
 
 ### npm release (Changesets + OIDC Trusted Publishing)
 
@@ -207,12 +207,13 @@ lint, build or test.
 **A workflow that takes a secret or a cloud role on `pull_request` gates that
 job on `github.triggering_actor`,** as `pulumi-preview-node` does: whoever wrote
 the PR's code holds whatever the job holds, and a bot that cannot edit workflow
-files can still write that code. The caller passes the people it trusts as
-`trusted-actors`, an empty list trusts nobody, and any other actor fails a gate
-job that holds no permissions before the privileged job starts. Never key the
-gate on the branch name, the PR author or a label being present: a bot can push
-under any branch name, a person's PR can carry a bot's later commit, and a label
-stays on when new commits land.
+files can still write that code. The gate asks GitHub for the actor's
+permission on the calling repo and passes only an admin, who could edit the
+caller's workflow anyway; bots hold no permission, and an unreadable permission
+counts as none. It runs as a job holding no permissions, before the privileged
+job starts. Never key the gate on the branch name, the PR author or a label
+being present: a bot can push under any branch name, a person's PR can carry a
+bot's later commit, and a label stays on when new commits land.
 
 ## Cutting a release
 
