@@ -44,12 +44,12 @@ uses: Yokai-Lab/github-workflows/.github/workflows/ci-node.yml@v1
 
 ## Available workflows
 
-| Workflow                   | Description                                                                      |
-| -------------------------- | -------------------------------------------------------------------------------- |
-| `ci-node.yml`              | format (prettier), lint (eslint), dead-code (knip), build, test (vitest)         |
-| `pulumi-preview-node.yml`  | `pulumi preview` on a Node program, AWS via OIDC, PR comment                     |
-| `npm-publish.yml`          | version + publish `@scope` packages via Changesets + npm OIDC Trusted Publishing |
-| `notify-slack-failure.yml` | post a build/deploy failure to Slack                                             |
+| Workflow                   | Description                                                                                     |
+| -------------------------- | ----------------------------------------------------------------------------------------------- |
+| `ci-node.yml`              | format (prettier), lint (eslint), dead-code (knip), build, test (vitest), audit (npm, PRs only) |
+| `pulumi-preview-node.yml`  | `pulumi preview` on a Node program, AWS via OIDC, PR comment                                    |
+| `npm-publish.yml`          | version + publish `@scope` packages via Changesets + npm OIDC Trusted Publishing                |
+| `notify-slack-failure.yml` | post a build/deploy failure to Slack                                                            |
 
 ---
 
@@ -79,6 +79,11 @@ that run in a browser (vitest browser mode, Storybook's vitest addon) name the
 Playwright browsers they need in `playwright-browsers`, and need `playwright`
 as a dev dependency. Add repo-specific jobs alongside the reusable call as
 needed.
+
+On pull requests it also fails on a high or critical advisory in the lockfile
+(`npm audit --audit-level=high`), which covers known malware. Pushes skip it,
+since it audits the whole tree and an advisory published against a dependency
+already on `main` would otherwise turn `main` red.
 
 ### Pulumi preview
 

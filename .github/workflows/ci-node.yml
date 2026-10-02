@@ -1,7 +1,7 @@
 name: Node CI
 
 # Reusable CI workflow for a Node package/app. Runs format check, lint,
-# dead-code check, build, and tests.
+# dead-code check, build, and tests, plus a dependency audit on pull requests.
 #
 # Caller requirements:
 #   * package.json scripts: `lint`, `knip`, `build`
@@ -54,3 +54,18 @@ jobs:
       # failure fails the job, so a separate build job would just be a rerun.
       - run: npm run build
       - run: npx vitest run
+
+  # Checks the lockfile against the GitHub Advisory Database, which lists known
+  # malware as high or critical, so a dependency a PR adds is vetted before it
+  # merges. It audits the whole tree rather than the PR's diff, so on a push to
+  # main it would turn main red the day an advisory lands against a dependency
+  # already there. npm audit reads the lockfile, so nothing is installed.
+  audit:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ inputs.node-version }}
+      - run: npm audit --audit-level=high
