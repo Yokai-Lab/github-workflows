@@ -116,19 +116,21 @@ aws iam get-role --role-name github-actions-deploy \
 ## Step 4 — Pulumi passphrase + GitHub Environment per stack
 
 The preview job runs in `environment: <STACK>` (e.g. `beta`, `prod`), so create
-a GitHub Environment per stack and scope its vars/secrets there.
+a GitHub Environment per stack and scope its vars there. The passphrase is a
+repo-level secret instead: the caller maps it explicitly in a job that cannot
+target an environment, where an environment-scoped secret resolves empty.
 
 ```bash
 STACK="<STACK>"                                  # e.g. beta
 ROLE_ARN="<role ARN from Step 3>"
 BACKEND_URL="s3://pulumi-state-<PROJECT>"
-PASSPHRASE="$(openssl rand -base64 32)"          # generate once per stack; keep it safe
+PASSPHRASE="$(openssl rand -base64 32)"          # generate once per repo; keep it safe
 
 gh api --method PUT "repos/<ORG>/<REPO>/environments/${STACK}"
 
 gh variable set AWS_DEPLOY_ROLE_ARN --repo <ORG>/<REPO> --env "$STACK" --body "$ROLE_ARN"
 gh variable set PULUMI_BACKEND_URL  --repo <ORG>/<REPO> --env "$STACK" --body "$BACKEND_URL"
-gh secret   set PULUMI_CONFIG_PASSPHRASE --repo <ORG>/<REPO> --env "$STACK" --body "$PASSPHRASE"
+gh secret   set PULUMI_CONFIG_PASSPHRASE --repo <ORG>/<REPO> --body "$PASSPHRASE"
 ```
 
 > Use the **same passphrase** across stacks/repos that need to decrypt each
@@ -187,7 +189,7 @@ gh secret set SLACK_WEBHOOK_URL --repo <ORG>/<REPO> --body "<WEBHOOK_URL>"
 - [ ] OIDC provider exists in the account (Step 2)
 - [ ] `github-actions-deploy` role created, trust scoped to the repo (Step 3)
 - [ ] Pulumi passphrase generated; `AWS_DEPLOY_ROLE_ARN` + `PULUMI_BACKEND_URL`
-      vars and `PULUMI_CONFIG_PASSPHRASE` secret set per GitHub Environment (Step 4)
+      vars set per GitHub Environment, `PULUMI_CONFIG_PASSPHRASE` as a repo secret (Step 4)
 - [ ] npm Trusted Publisher configured per package; new names bootstrapped (Step 5)
 - [ ] `SLACK_WEBHOOK_URL` set (Step 6) — if using `notify-slack-failure`
 

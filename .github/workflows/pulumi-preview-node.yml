@@ -119,6 +119,20 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # An empty passphrase otherwise surfaces as a Pulumi decryption error that never names
+      # the cause. A stack whose file carries `encryptionsalt` uses the passphrase provider;
+      # one on KMS or Pulumi Cloud needs no passphrase, which is why the secret is optional.
+      - name: Check the passphrase arrived
+        working-directory: ${{ inputs.work-dir }}
+        env:
+          PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+          STACK: ${{ inputs.stack-name }}
+        run: |
+          if [ -z "$PASSPHRASE" ] && grep -qs '^encryptionsalt:' "Pulumi.$STACK.yaml"; then
+            echo "::error title=PULUMI_CONFIG_PASSPHRASE is empty::Stack $STACK uses a passphrase (Pulumi.$STACK.yaml has encryptionsalt), but none reached this workflow. The caller must map it explicitly under secrets, from a repo- or org-level secret: secrets: inherit forwards nothing across repo owners, and an environment-scoped secret resolves empty in the calling job."
+            exit 1
+          fi
+
       - uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
